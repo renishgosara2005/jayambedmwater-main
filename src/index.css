@@ -1,0 +1,50 @@
+/* 🔥 RESET */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 🔥 BODY */
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #f0f2f5;
+  color: #333;
+}
+
+/* 🔥 ROOT */
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* 🔥 HEADINGS */
+h1, h2, h3 {
+  font-weight: 600;
+  color: #222;
+}
+
+/* 🔥 LINKS */
+a {
+  text-decoration: none;
+  color: #1677ff;
+}
+
+/* 🔥 BUTTON (optional override) */
+button {
+  font-family: inherit;
+}
+
+/* 🔥 SCROLLBAR (optional nice UI) */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
