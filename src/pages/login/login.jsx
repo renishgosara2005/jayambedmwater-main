@@ -11,17 +11,27 @@ const Login = () => {
     try {
       const values = await form.validateFields();
 
-      // ✅ API CALL
+      // ✅ API CALL (FIXED)
       const res = await axios.post(
-        "${BASE_URL}/api/auth/login",
-        values,
+        `${BASE_URL}/api/auth/login`,
+        values
       );
 
-      // ✅ Store token
-      localStorage.setItem("token", res.data.token);
+      console.log("Response:", res.data);
 
-      navigate("/dashboard");
+      // ✅ LOGIN SUCCESS CHECK
+      if (res.data.message === "Login success") {
+        // store user
+        localStorage.setItem("user", JSON.stringify(res.data.user));
+
+        alert("Login Success ✅");
+
+        navigate("/dashboard");
+      } else {
+        alert("Login Failed ❌");
+      }
     } catch (err) {
+      console.log("Error:", err);
       alert(err.response?.data?.message || "Login Failed ❌");
     }
   };
@@ -32,14 +42,18 @@ const Login = () => {
         <h2>Login</h2>
 
         <Form form={form} layout="vertical">
-          <Form.Item name="email" label="Email" rules={[{ required: true }]}>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[{ required: true, message: "Please enter email" }]}
+          >
             <Input />
           </Form.Item>
 
           <Form.Item
             name="password"
             label="Password"
-            rules={[{ required: true }]}
+            rules={[{ required: true, message: "Please enter password" }]}
           >
             <Input.Password />
           </Form.Item>
