@@ -55,22 +55,21 @@ app.use((err, req, res, next) => {
 // ✅ DB CONNECT
 const connectDB = async () => {
   try {
-    if (!process.env.MONGO_URL) {
-      throw new Error("MONGO_URL is missing in .env ❌");
-    }
-
-    await mongoose.connect(process.env.MONGO_URL);
+    await mongoose.connect(process.env.MONGO_URL, {
+      serverSelectionTimeoutMS: 5000,
+    });
     console.log("MongoDB Connected ✅");
   } catch (err) {
-    console.log("Mongo Error ❌", err.message);
-    process.exit(1);
+    console.log("Mongo Error ❌:", err.message);
   }
 };
 
 // ✅ START SERVER
 const PORT = process.env.PORT || 5000;
-connectDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT} 🚀`);
-  });
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT} 🚀`);
 });
+
+// DB connect separately
+connectDB();
