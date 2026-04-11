@@ -5,12 +5,13 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import mongoose from "mongoose";
+import dns from "dns";
 
 // 🔥 LOAD ENV (IMPORTANT FIX)
 dotenv.config({ path: "./.env" });
 
 const app = express();
-
+dns.setDefaultResultOrder("ipv4first");
 // ✅ MIDDLEWARE
 app.use(cors());
 app.use(express.json());
