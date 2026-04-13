@@ -1,6 +1,6 @@
 import express from "express";
 import {
-  createDailyChart,
+  addDailyChart,
   getDailyChart,
   updateDailyChart,
   deleteDailyChart,
@@ -8,10 +8,9 @@ import {
 
 const router = express.Router();
 
-// ✅ IMPORTANT
-router.post("/", createDailyChart);
+router.post("/", addDailyChart);
 router.get("/", getDailyChart);
 router.put("/:id", updateDailyChart);
 router.delete("/:id", deleteDailyChart);
 
-export default router;  
+export default router;

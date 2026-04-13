@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
+
 import {
   Card,
   Table,
@@ -8,17 +9,26 @@ import {
   Input,
   DatePicker,
   Select,
+  Row,
+  Col,
+  Typography,
+  Divider,
+  message,
+  Spin,
 } from "antd";
 import { useState, useEffect } from "react";
 import dayjs from "dayjs";
 import BASE_URL from "../../api";
 
-const API = "${BASE_URL}/api/customer";
+const { Title, Text } = Typography;
+
+const API = `${BASE_URL}/api/customer`;
 
 const DailyChart = () => {
   const [data, setData] = useState([]);
   const [selectedDate, setSelectedDate] = useState(dayjs());
   const [filteredData, setFilteredData] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const [open, setOpen] = useState(false);
   const [cellModal, setCellModal] = useState(false);
@@ -30,72 +40,61 @@ const DailyChart = () => {
 
   const employees = ["Manveer kaka", "Vijay", "Bhano"];
 
-  // 🔥 LOAD DATA FROM BACKEND
+  // 🔥 FETCH DATA
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(API);
+      const result = await res.json();
+      setData(result);
+    } catch (err) {
+      message.error("API Error ❌");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetch(API)
-      .then((res) => res.json())
-      .then((res) => setData(res));
+    fetchData();
   }, []);
 
-  // 🔥 FILTER DATE
+  // 🔥 FILTER
   useEffect(() => {
     const dateStr = selectedDate.format("DD-MM-YYYY");
-    const filtered = data.filter((item) => item.date === dateStr);
-    setFilteredData(filtered);
+    setFilteredData(data.filter((i) => i.date === dateStr));
   }, [selectedDate, data]);
 
-  // 🔥 ADD CUSTOMER (API)
+  // 🔥 ADD CUSTOMER
   const handleAdd = async () => {
-    const values = await form.validateFields();
+    try {
+      const values = await form.validateFields();
 
-    const payload = {
-      name: values.name,
-      price: Number(values.price),
-      date: selectedDate.format("DD-MM-YYYY"),
-      q1: 0,
-      q2: 0,
-      q3: 0,
-      q4: 0,
-      q5: 0,
-      q6: 0,
-      q7: 0,
-      total: 0,
-    };
+      await fetch(`${API}/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: values.name,
+          price: Number(values.price),
+          date: selectedDate.format("DD-MM-YYYY"),
+          q1: 0, q2: 0, q3: 0, q4: 0, q5: 0, q6: 0, q7: 0,
+          total: 0,
+        }),
+      });
 
-    const res = await fetch(`${API}/add`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const result = await res.json();
-
-    setData((prev) => [...prev, result.customer]);
-
-    form.resetFields();
-    setOpen(false);
+      message.success("Customer Added ✅");
+      setOpen(false);
+      form.resetFields();
+      fetchData();
+    } catch {
+      message.error("Failed ❌");
+    }
   };
 
   // 🔥 DELETE
   const handleDelete = async (id) => {
-    await fetch(`${API}/${id}`, {
-      method: "DELETE",
-    });
-
-    setData(data.filter((item) => item._id !== id));
-  };
-
-  // 🔥 EDIT (ONLY UI)
-  const handleEdit = (record) => {
-    form.setFieldsValue({
-      name: record.name,
-      price: record.price,
-    });
-
-    setSelectedCell({ editKey: record._id });
-    setOpen(true);
+    await fetch(`${API}/${id}`, { method: "DELETE" });
+    message.success("Deleted 🗑️");
+    fetchData();
   };
 
   // 🔥 CELL CLICK
@@ -104,193 +103,129 @@ const DailyChart = () => {
     setCellModal(true);
   };
 
-  // 🔥 CELL SAVE (API UPDATE)
+  // 🔥 CELL SAVE
   const handleCellSave = async () => {
     const values = await cellForm.validateFields();
 
-    let updatedItem;
+    const updatedItem = {
+      ...selectedCell.record,
+      [selectedCell.field]: Number(values.liter),
+      [`${selectedCell.field}_emp`]: values.employee,
+    };
 
-    const updated = data.map((item) => {
-      if (item._id === selectedCell.record._id) {
-        updatedItem = {
-          ...item,
-          [selectedCell.field]: Number(values.liter),
-          [`${selectedCell.field}_emp`]: values.employee,
-        };
+    const totalQty =
+      updatedItem.q1 + updatedItem.q2 + updatedItem.q3 +
+      updatedItem.q4 + updatedItem.q5 + updatedItem.q6 + updatedItem.q7;
 
-        const totalQty =
-          updatedItem.q1 +
-          updatedItem.q2 +
-          updatedItem.q3 +
-          updatedItem.q4 +
-          updatedItem.q5 +
-          updatedItem.q6 +
-          updatedItem.q7;
+    updatedItem.total = totalQty * updatedItem.price;
 
-        updatedItem.total = totalQty * updatedItem.price;
-
-        return updatedItem;
-      }
-      return item;
-    });
-
-    setData(updated);
-
-    await fetch(`${API}/update/${selectedCell.record._id}`, {
+    await fetch(`${API}/update/${updatedItem._id}`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedItem),
     });
 
+    message.success("Updated ✅");
     setCellModal(false);
     cellForm.resetFields();
+    fetchData();
   };
 
-  // 🔥 DAILY TOTAL
+  // 🔥 TOTAL
   const totalLiters = filteredData.reduce(
-    (sum, item) =>
-      sum +
-      item.q1 +
-      item.q2 +
-      item.q3 +
-      item.q4 +
-      item.q5 +
-      item.q6 +
-      item.q7,
-    0
+    (s, i) => s + i.q1+i.q2+i.q3+i.q4+i.q5+i.q6+i.q7, 0
   );
 
-  const grandTotal = filteredData.reduce((sum, item) => sum + item.total, 0);
-
-  // 🔥 MONTHLY
-  const monthlyData = data.filter((item) => {
-    const d = dayjs(item.date, "DD-MM-YYYY");
-    return (
-      d.month() === selectedDate.month() &&
-      d.year() === selectedDate.year()
-    );
-  });
-
-  const monthlyLiters = monthlyData.reduce(
-    (sum, item) =>
-      sum +
-      item.q1 +
-      item.q2 +
-      item.q3 +
-      item.q4 +
-      item.q5 +
-      item.q6 +
-      item.q7,
-    0
-  );
-
-  const monthlyAmount = monthlyData.reduce((sum, item) => sum + item.total, 0);
-
-  // 🔥 MONTH SUMMARY
-  const monthSummary = {};
-  data.forEach((item) => {
-    const d = dayjs(item.date, "DD-MM-YYYY");
-    const key = d.format("MM-YYYY");
-
-    if (!monthSummary[key]) {
-      monthSummary[key] = { month: key, amount: 0 };
-    }
-
-    monthSummary[key].amount += item.total;
-  });
-
-  const monthTableData = Object.values(monthSummary);
+  const grandTotal = filteredData.reduce((s, i) => s + i.total, 0);
 
   // 🔥 COLUMN
   const getColumn = (num) => ({
     title: num,
+    align: "center",
     render: (_, record) => (
       <div
-        style={{ cursor: "pointer" }}
         onClick={() => handleCellClick(record, `q${num}`)}
+        style={{
+          cursor: "pointer",
+          padding: 5,
+          borderRadius: 6,
+          transition: "0.2s",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "#f5f5f5")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
       >
-        {record[`q${num}`] || 0} L
-        <div style={{ fontSize: 10 }}>{record[`q${num}_emp`]}</div>
+        <b>{record[`q${num}`] || 0} L</b>
+        <div style={{ fontSize: 11, color: "#999" }}>
+          {record[`q${num}_emp`] || "-"}
+        </div>
       </div>
     ),
   });
 
   const columns = [
-    { title: "Name", dataIndex: "name" },
-    getColumn(1),
-    getColumn(2),
-    getColumn(3),
-    getColumn(4),
-    getColumn(5),
-    getColumn(6),
-    getColumn(7),
-    { title: "Total ₹", dataIndex: "total" },
+    { title: "Name", dataIndex: "name", fixed: "left" },
+    getColumn(1), getColumn(2), getColumn(3),
+    getColumn(4), getColumn(5), getColumn(6), getColumn(7),
+    { title: "Total ₹", dataIndex: "total", align: "center" },
     {
       title: "Action",
+      align: "center",
       render: (_, record) => (
-        <>
-          <Button type="link" onClick={() => handleEdit(record)}>
-            Edit
-          </Button>
-          <Button danger type="link" onClick={() => handleDelete(record._id)}>
-            Delete
-          </Button>
-        </>
+        <Button danger size="small" onClick={() => handleDelete(record._id)}>
+          Delete
+        </Button>
       ),
     },
   ];
 
   return (
-    <div style={{ padding: 20 }}>
-      <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-        <DatePicker value={selectedDate} onChange={setSelectedDate} />
+    <div style={{ padding: 10 }}>
+      {/* 🔥 HEADER */}
+      <Row gutter={[10, 10]} style={{ marginBottom: 12 }}>
+        <Col xs={24} sm={12} md={6}>
+          <DatePicker
+            value={selectedDate}
+            onChange={setSelectedDate}
+            style={{ width: "100%" }}
+          />
+        </Col>
 
-        <Button
-          type="primary"
-          onClick={() => {
-            setSelectedCell(null);
-            form.resetFields();
-            setOpen(true);
-          }}
-        >
-          + Add Customer
-        </Button>
-      </div>
+        <Col xs={24} sm={12} md={6}>
+          <Button type="primary" block onClick={() => setOpen(true)}>
+            + Add Customer
+          </Button>
+        </Col>
+      </Row>
 
-      <Card title="Daily Supply">
-        <Table
-          rowKey="_id"
-          columns={columns}
-          dataSource={filteredData}
-          pagination={false}
-        />
+      {/* 🔥 TABLE */}
+      <Card
+        title={<Text strong>Daily Supply</Text>}
+        bordered={false}
+        style={{ borderRadius: 12 }}
+      >
+        <Spin spinning={loading}>
+          <Table
+            rowKey="_id"
+            columns={columns}
+            dataSource={filteredData}
+            pagination={false}
+            scroll={{ x: 900 }}
+          />
+        </Spin>
 
-        <div style={{ marginTop: 20, textAlign: "right" }}>
-          <h3>Daily Water: {totalLiters} L</h3>
-          <h3>Daily Amount: ₹{grandTotal}</h3>
+        <Divider />
 
-          <hr />
-
-          <h3 style={{ color: "blue" }}>Monthly Water: {monthlyLiters} L</h3>
-          <h2 style={{ color: "green" }}>
-            Monthly Amount: ₹{monthlyAmount}
-          </h2>
-        </div>
+        <Row justify="end">
+          <Col>
+            <Title level={5}>💧 {totalLiters} L</Title>
+            <Title level={4} style={{ color: "#1677ff" }}>
+              ₹ {grandTotal}
+            </Title>
+          </Col>
+        </Row>
       </Card>
 
-      <Card title="Month Wise Summary" style={{ marginTop: 20 }}>
-        <Table
-          dataSource={monthTableData}
-          columns={[
-            { title: "Month", dataIndex: "month" },
-            { title: "Total ₹", dataIndex: "amount" },
-          ]}
-        />
-      </Card>
-
-      {/* ADD */}
+      {/* 🔥 ADD MODAL */}
       <Modal
         title="Add Customer"
         open={open}
@@ -298,35 +233,33 @@ const DailyChart = () => {
         onCancel={() => setOpen(false)}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="Customer Name" rules={[{ required: true }]}>
+          <Form.Item name="name" label="Customer" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
 
-          <Form.Item name="price" label="Price per Liter" rules={[{ required: true }]}>
+          <Form.Item name="price" label="Price" rules={[{ required: true }]}>
             <Input type="number" />
           </Form.Item>
         </Form>
       </Modal>
 
-      {/* CELL */}
+      {/* 🔥 CELL MODAL */}
       <Modal
-        title="Top Up Entry"
+        title="Update Entry"
         open={cellModal}
         onOk={handleCellSave}
         onCancel={() => setCellModal(false)}
       >
         <Form form={cellForm} layout="vertical">
-          <Form.Item name="employee" label="Employee Name" rules={[{ required: true }]}>
+          <Form.Item name="employee" label="Employee" rules={[{ required: true }]}>
             <Select>
-              {employees.map((emp) => (
-                <Select.Option key={emp} value={emp}>
-                  {emp}
-                </Select.Option>
+              {employees.map((e) => (
+                <Select.Option key={e}>{e}</Select.Option>
               ))}
             </Select>
           </Form.Item>
 
-          <Form.Item name="liter" label="Liters" rules={[{ required: true }]}>
+          <Form.Item name="liter" label="Liter" rules={[{ required: true }]}>
             <Input type="number" />
           </Form.Item>
         </Form>
