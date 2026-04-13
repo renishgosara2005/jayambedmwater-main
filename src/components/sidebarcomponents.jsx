@@ -1,20 +1,43 @@
-import { Layout, Menu, Avatar, Dropdown } from "antd";
+import { Layout, Menu, Avatar, Dropdown, Button } from "antd";
 import {
   DashboardOutlined,
   UserOutlined,
   ShoppingCartOutlined,
   DollarOutlined,
-  // SettingOutlined,
   LineChartOutlined,
-  ExperimentOutlined, // ✅ FIXED ICON
+  ExperimentOutlined,
+  MenuOutlined,
 } from "@ant-design/icons";
 
-import { Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
 
 const { Header, Sider, Content } = Layout;
 
 const AppLayout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // 📱 SCREEN DETECT
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 992) {
+        setMobile(false);
+        setCollapsed(true); // tablet → icon only
+      } else {
+        setMobile(false);
+        setCollapsed(false);
+      }
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const menuItems = [
     { key: "/Dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
@@ -31,24 +54,40 @@ const AppLayout = () => {
   return (
     <Layout style={{ minHeight: "100vh" }}>
       {/* 🔥 SIDEBAR */}
-      <Sider width={220}>
+      <Sider
+        collapsible={!mobile}
+        collapsed={collapsed}
+        trigger={null}
+        width={220}
+        collapsedWidth={mobile ? 0 : 80}
+        style={{
+          position: mobile ? "fixed" : "relative",
+          zIndex: 1000,
+          height: "100vh",
+        }}
+      >
+        {/* LOGO */}
         <h2
           style={{
             color: "#fff",
             textAlign: "center",
             padding: 18,
             margin: 0,
-            fontWeight: "bold",
+            fontSize: collapsed ? 14 : 18,
           }}
         >
-          JayAmbedmWater
+          {collapsed ? "JW" : "JayAmbedmWater"}
         </h2>
 
         <Menu
           theme="dark"
           mode="inline"
+          selectedKeys={[location.pathname]} // ✅ ACTIVE HIGHLIGHT
           items={menuItems}
-          onClick={(e) => navigate(e.key)}
+          onClick={(e) => {
+            navigate(e.key);
+            if (mobile) setDrawerOpen(false);
+          }}
         />
       </Sider>
 
@@ -58,11 +97,20 @@ const AppLayout = () => {
           style={{
             background: "#fff",
             display: "flex",
-            justifyContent: "flex-end",
+            justifyContent: "space-between",
             alignItems: "center",
-            paddingRight: 20,
+            padding: "0 20px",
           }}
         >
+          {/* 📱 MOBILE MENU BUTTON */}
+          {mobile && (
+            <Button
+              icon={<MenuOutlined />}
+              onClick={() => setDrawerOpen(!drawerOpen)}
+            />
+          )}
+
+          {/* 👤 USER */}
           <Dropdown
             menu={{
               items: [
@@ -76,12 +124,13 @@ const AppLayout = () => {
         </Header>
 
         {/* 🔥 CONTENT */}
-        <Content style={{ margin: 20 }}>
+        <Content style={{ margin: 16 }}>
           <div
             style={{
-              padding: 20,
+              padding: 16,
               background: "#fff",
               borderRadius: 10,
+              minHeight: "80vh",
             }}
           >
             <Outlet />

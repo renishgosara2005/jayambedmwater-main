@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable no-unused-vars */
+
 import {
   Card,
   Table,
@@ -8,6 +9,8 @@ import {
   DatePicker,
   Modal,
   Form,
+  Row,
+  Col,
 } from "antd";
 import { useState, useEffect } from "react";
 import { jsPDF } from "jspdf";
@@ -21,42 +24,53 @@ const Customers = () => {
   const [searchName, setSearchName] = useState("");
   const [dateRange, setDateRange] = useState([]);
   const [editing, setEditing] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const [form] = Form.useForm();
 
-  // 🔥 LOAD DATA (API VERSION)
-  useEffect(() => {
-    fetch("${BASE_URL}/api/daily-chart")
-      .then((res) => res.json())
-      .then((parsed) => {
-        let finalData = [];
+  // ✅ FETCH DATA (FIXED)
+  const fetchData = async () => {
+    try {
+      setLoading(true);
 
-        parsed.forEach((item) => {
-          for (let i = 1; i <= 7; i++) {
-            const liter = item[`q${i}`];
-            const emp = item[`q${i}_emp`];
+      const res = await fetch(`${BASE_URL}/api/daily-chart`);
+      const parsed = await res.json();
 
-            if (liter > 0) {
-              finalData.push({
-                key: `${item._id}-${i}`,
-                parentId: item._id,
-                field: `q${i}`,
-                name: item.name,
-                employee: emp,
-                liter: liter,
-                amount: liter * item.price,
-                date: item.date,
-              });
-            }
+      let finalData = [];
+
+      parsed.forEach((item) => {
+        for (let i = 1; i <= 7; i++) {
+          const liter = item[`q${i}`];
+          const emp = item[`q${i}_emp`];
+
+          if (liter > 0) {
+            finalData.push({
+              key: `${item._id}-${i}`,
+              parentId: item._id,
+              field: `q${i}`,
+              name: item.name,
+              employee: emp,
+              liter: liter,
+              amount: liter * item.price,
+              date: item.date,
+            });
           }
-        });
+        }
+      });
 
-        setData(finalData);
-      })
-      .catch((err) => console.log(err));
+      setData(finalData);
+    } catch (err) {
+      console.log("Fetch Error ❌", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
 
-  // 🔥 FILTER (UNCHANGED)
+  // ✅ FILTER
   const filteredData = data.filter((item) => {
     const matchName = item.name
       ?.toLowerCase()
@@ -64,7 +78,7 @@ const Customers = () => {
 
     let matchDate = true;
 
-    if (dateRange && dateRange.length === 2) {
+    if (dateRange?.length === 2) {
       const itemDate = dayjs(item.date, "DD-MM-YYYY");
 
       matchDate =
@@ -77,19 +91,16 @@ const Customers = () => {
     return matchName && matchDate;
   });
 
-  // 🔥 DELETE (API VERSION)
+  // ✅ DELETE
   const handleDelete = async (record) => {
-    await fetch(
-      `${BASE_URL}/api/daily-chart/${record.parentId}`,
-      {
-        method: "DELETE",
-      }
-    );
+    await fetch(`${BASE_URL}/api/daily-chart/${record.parentId}`, {
+      method: "DELETE",
+    });
 
-    setData((prev) => prev.filter((d) => d.key !== record.key));
+    fetchData();
   };
 
-  // 🔥 EDIT OPEN (UNCHANGED)
+  // ✅ EDIT
   const handleEdit = (record) => {
     setEditing(record);
     form.setFieldsValue({
@@ -99,32 +110,26 @@ const Customers = () => {
     });
   };
 
-  // 🔥 EDIT SAVE (API VERSION)
   const handleSave = async () => {
     const values = await form.validateFields();
 
-    await fetch(
-      `${BASE_URL}/api/daily-chart/${editing.parentId}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: values.name,
-          [editing.field]: Number(values.liter),
-          [`${editing.field}_emp`]: values.employee,
-        }),
-      }
-    );
+    await fetch(`${BASE_URL}/api/daily-chart/${editing.parentId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: values.name,
+        [editing.field]: Number(values.liter),
+        [`${editing.field}_emp`]: values.employee,
+      }),
+    });
 
-    window.location.reload();
+    setEditing(null);
+    fetchData();
   };
 
-  // 🔥 PDF (UNCHANGED)
+  // ✅ PDF
   const generatePDF = () => {
     const doc = new jsPDF();
-
     doc.text("Customer Report", 20, 20);
 
     let y = 30;
@@ -141,13 +146,12 @@ const Customers = () => {
     doc.save("customer-report.pdf");
   };
 
-  // 🔥 TABLE (UNCHANGED)
+  // ✅ TABLE
   const columns = [
     { title: "Customer", dataIndex: "name" },
     { title: "Employee", dataIndex: "employee" },
     { title: "Liter", dataIndex: "liter" },
     { title: "Date", dataIndex: "date" },
-
     {
       title: "Action",
       render: (_, record) => (
@@ -155,7 +159,6 @@ const Customers = () => {
           <Button type="link" onClick={() => handleEdit(record)}>
             Edit
           </Button>
-
           <Button danger type="link" onClick={() => handleDelete(record)}>
             Delete
           </Button>
@@ -165,25 +168,46 @@ const Customers = () => {
   ];
 
   return (
-    <div style={{ padding: 20 }}>
-      <Card title="Customer Report">
-        <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-          <Input
-            placeholder="Search customer..."
-            value={searchName}
-            onChange={(e) => setSearchName(e.target.value)}
-          />
+    <div style={{ padding: 10 }}>
+      <Card title="Customer Report" bordered={false}>
+        {/* 🔥 RESPONSIVE FILTER */}
+        <Row gutter={[10, 10]} style={{ marginBottom: 15 }}>
+          <Col xs={24} sm={12} md={8}>
+            <Input
+              placeholder="Search customer..."
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+            />
+          </Col>
 
-          <RangePicker onChange={(dates) => setDateRange(dates)} />
+          <Col xs={24} sm={12} md={8}>
+            <RangePicker
+              style={{ width: "100%" }}
+              onChange={(dates) => setDateRange(dates)}
+            />
+          </Col>
 
-          <Button type="primary" onClick={generatePDF}>
-            Download PDF
-          </Button>
-        </div>
+          <Col xs={24} sm={24} md={4}>
+            <Button
+              type="primary"
+              block
+              onClick={generatePDF}
+            >
+              Download PDF
+            </Button>
+          </Col>
+        </Row>
 
-        <Table columns={columns} dataSource={filteredData} />
+        {/* 🔥 TABLE */}
+        <Table
+          columns={columns}
+          dataSource={filteredData}
+          loading={loading}
+          scroll={{ x: 600 }} // mobile fix
+        />
       </Card>
 
+      {/* 🔥 MODAL */}
       <Modal
         title="Edit Entry"
         open={!!editing}
