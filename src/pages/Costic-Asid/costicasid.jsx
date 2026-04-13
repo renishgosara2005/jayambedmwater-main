@@ -24,23 +24,28 @@ const CosticAcid = () => {
 
   // ✅ FETCH DATA
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/immutability
     fetchData();
   }, []);
 
   const fetchData = async () => {
-    const res = await fetch("${BASE_URL}/api/chemical");
-    const data = await res.json();
+    try {
+      const res = await fetch(`${BASE_URL}/api/chemical`);
+      if (!res.ok) return;
 
-    setCostic(data.filter((i) => i.type === "costic"));
-    setAcid(data.filter((i) => i.type === "acid"));
+      const data = await res.json();
+
+      setCostic(data.filter((i) => i.type === "costic"));
+      setAcid(data.filter((i) => i.type === "acid"));
+    } catch (err) {
+      console.error("Fetch error:", err);
+    }
   };
 
   // ✅ ADD COSTIC
   const handleAddCostic = async () => {
     const values = await formCostic.validateFields();
 
-    await fetch("${BASE_URL}/api/chemical", {
+    await fetch(`${BASE_URL}/api/chemical`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -62,7 +67,7 @@ const CosticAcid = () => {
   const handleAddAcid = async () => {
     const values = await formAcid.validateFields();
 
-    await fetch("${BASE_URL}/api/chemical", {
+    await fetch(`${BASE_URL}/api/chemical`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -122,10 +127,10 @@ const CosticAcid = () => {
   ];
 
   return (
-    <div style={{ padding: 20 }}>
-      <Row gutter={20}>
+    <div style={{ padding: 15 }}>
+      <Row gutter={[16, 16]}>
         {/* COSTIC */}
-        <Col span={12}>
+        <Col xs={24} md={12}>
           <Card
             title="COSTIC"
             extra={<Button onClick={() => setOpenCostic(true)}>+ Add</Button>}
@@ -134,18 +139,24 @@ const CosticAcid = () => {
               dataSource={costic}
               columns={costicColumns}
               rowKey="_id"
+              scroll={{ x: true }}
             />
             <h3>Total: ₹{totalCostic}</h3>
           </Card>
         </Col>
 
         {/* ACID */}
-        <Col span={12}>
+        <Col xs={24} md={12}>
           <Card
             title="ACID"
             extra={<Button onClick={() => setOpenAcid(true)}>+ Add</Button>}
           >
-            <Table dataSource={acid} columns={acidColumns} rowKey="_id" />
+            <Table
+              dataSource={acid}
+              columns={acidColumns}
+              rowKey="_id"
+              scroll={{ x: true }}
+            />
             <h3>Total: ₹{totalAcid}</h3>
           </Card>
         </Col>
