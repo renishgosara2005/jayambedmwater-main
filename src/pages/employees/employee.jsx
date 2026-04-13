@@ -28,18 +28,18 @@ const Employee = () => {
   const handleAdd = async () => {
     const values = await form.validateFields();
 
-    await fetch("${BASE_URL}/api/employee", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: values.name,
-        phone: values.phone,
-        work: values.work,
-        salary: Number(values.salary),
-      }),
-    });
+    await fetch(`${BASE_URL}/api/employee`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    name: values.name,
+    phone: values.phone,
+    work: values.work,
+    salary: Number(values.salary),
+  }),
+});
 
     fetchData();
     form.resetFields();
