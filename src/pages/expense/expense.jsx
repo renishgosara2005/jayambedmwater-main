@@ -1,4 +1,5 @@
 /* eslint-disable no-unused-vars */
+
 import {
   Card,
   Table,
@@ -8,14 +9,25 @@ import {
   Input,
   DatePicker,
   Select,
+  Row,
+  Col,
+  Typography,
+  Space,
+  message,
+  Spin,
 } from "antd";
 import { useState, useEffect } from "react";
 import jsPDF from "jspdf";
 import dayjs from "dayjs";
 import BASE_URL from "../../api";
 
+const { Title, Text } = Typography;
+
+const API = `${BASE_URL}/api/expense`;
+
 const Expense = () => {
   const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const [form] = Form.useForm();
   const [open, setOpen] = useState(false);
@@ -24,44 +36,60 @@ const Expense = () => {
 
   // ✅ FETCH DATA
   const fetchData = async () => {
-    const res = await fetch("${BASE_URL}/api/expense");
-    const result = await res.json();
-    setData(result);
+    try {
+      setLoading(true);
+
+      const res = await fetch(API);
+      const result = await res.json();
+
+      console.log("Expense API 👉", result);
+
+      // 🔥 FIX (array ensure)
+      setData(result.data || result || []);
+
+    } catch {
+      message.error("API Error ❌");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
   }, []);
 
   // ✅ ADD
   const handleAdd = async () => {
-    const values = await form.validateFields();
+    try {
+      const values = await form.validateFields();
 
-    await fetch("${BASE_URL}/api/expense", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        driver: values.driver,
-        number: values.number,
-        expense: Number(values.expense),
-        date: values.date.format("DD-MM-YYYY"),
-      }),
-    });
+      await fetch(API, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          driver: values.driver,
+          number: values.number,
+          expense: Number(values.expense),
+          date: values.date.format("DD-MM-YYYY"),
+        }),
+      });
 
-    fetchData();
-    form.resetFields();
-    setOpen(false);
+      message.success("Expense Added ✅");
+      setOpen(false);
+      form.resetFields();
+      fetchData();
+    } catch {
+      message.error("Failed ❌");
+    }
   };
 
   // ✅ DELETE
   const handleDelete = async (id) => {
-    await fetch(`${BASE_URL}/api/expense/${id}`, {
+    await fetch(`${API}/${id}`, {
       method: "DELETE",
     });
 
+    message.success("Deleted 🗑️");
     fetchData();
   };
 
@@ -93,7 +121,7 @@ const Expense = () => {
       doc.text(
         `${i + 1}. ${item.driver} - ${item.number} - ₹${item.expense} - ${item.date}`,
         20,
-        y,
+        y
       );
       y += 10;
     });
@@ -108,15 +136,16 @@ const Expense = () => {
     {
       title: "ID",
       render: (_, __, index) => index + 1,
+      width: 60,
     },
     { title: "Date", dataIndex: "date" },
-    { title: "Driver Name", dataIndex: "driver" },
-    { title: "Vehicle No", dataIndex: "number" },
+    { title: "Driver", dataIndex: "driver" },
+    { title: "Vehicle", dataIndex: "number" },
     { title: "Expense ₹", dataIndex: "expense" },
     {
       title: "Action",
       render: (_, record) => (
-        <Button danger onClick={() => handleDelete(record._id)}>
+        <Button danger size="small" onClick={() => handleDelete(record._id)}>
           Delete
         </Button>
       ),
@@ -124,41 +153,65 @@ const Expense = () => {
   ];
 
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 10 }}>
+      {/* HEADER */}
       <Card
-        title="Expense Details"
+        title={<Text strong>Expense Details</Text>}
         extra={
           <Button type="primary" onClick={() => setOpen(true)}>
             + Add Expense
           </Button>
         }
+        style={{ borderRadius: 12 }}
       >
-        <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
-          <Input
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+        {/* FILTER */}
+        <Row gutter={[10, 10]} style={{ marginBottom: 10 }}>
+          <Col xs={24} sm={12} md={6}>
+            <Input
+              placeholder="Search driver / vehicle"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </Col>
+
+          <Col xs={24} sm={12} md={6}>
+            <DatePicker
+              style={{ width: "100%" }}
+              onChange={(d) => setSelectedDate(d)}
+            />
+          </Col>
+
+          <Col xs={24} sm={12} md={6}>
+            <Space>
+              <Button onClick={generatePDF}>PDF</Button>
+
+              <Button
+                onClick={() => {
+                  setSearch("");
+                  setSelectedDate(null);
+                }}
+              >
+                Clear
+              </Button>
+            </Space>
+          </Col>
+        </Row>
+
+        {/* TOTAL */}
+        <Title level={5}>💸 Total: ₹{total}</Title>
+
+        {/* TABLE */}
+        <Spin spinning={loading}>
+          <Table
+            columns={columns}
+            dataSource={filteredData}
+            rowKey="_id"
+            scroll={{ x: 800 }}
           />
-
-          <DatePicker onChange={(d) => setSelectedDate(d)} />
-
-          <Button onClick={generatePDF}>PDF</Button>
-
-          <Button
-            onClick={() => {
-              setSearch("");
-              setSelectedDate(null);
-            }}
-          >
-            Clear
-          </Button>
-        </div>
-
-        <h3>Total Expense: ₹{total}</h3>
-
-        <Table columns={columns} dataSource={filteredData} rowKey="_id" />
+        </Spin>
       </Card>
 
+      {/* MODAL */}
       <Modal
         title="Add Expense"
         open={open}
@@ -172,9 +225,9 @@ const Expense = () => {
 
           <Form.Item name="number" label="Vehicle" rules={[{ required: true }]}>
             <Select>
-              <Select.Option value="GJ01AA1234">GJ03AX6592</Select.Option>
-              <Select.Option value="GJ01BB5678">GJ03W1947</Select.Option>
-              <Select.Option value="GJ01BB5678">GJ003AZ6929</Select.Option>
+              <Select.Option value="GJ03AX6592">GJ03AX6592</Select.Option>
+              <Select.Option value="GJ03W1947">GJ03W1947</Select.Option>
+              <Select.Option value="GJ03AZ6929">GJ03AZ6929</Select.Option>
             </Select>
           </Form.Item>
 
