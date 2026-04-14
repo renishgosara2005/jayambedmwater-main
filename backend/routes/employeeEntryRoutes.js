@@ -1,9 +1,9 @@
 import express from "express";
 import {
   addEntry,
-  getEntries,
+  getEntriesByEmployee,
   deleteEntry,
-  getWater,
+  getWaterByDate,
 } from "../controllers/employeeEntryController.js";
 
 const router = express.Router();
@@ -11,13 +11,13 @@ const router = express.Router();
 // ✅ ADD ENTRY
 router.post("/", addEntry);
 
-// ✅ GET ENTRY
-router.get("/:id", getEntries);
+// ✅ GET BY EMPLOYEE
+router.get("/:id", getEntriesByEmployee);
 
 // ✅ DELETE
 router.delete("/:id", deleteEntry);
 
-// ✅ WATER
-router.get("/water/by-date", getWater);
+// ✅ WATER API
+router.get("/water/by-date", getWaterByDate);
 
 export default router;

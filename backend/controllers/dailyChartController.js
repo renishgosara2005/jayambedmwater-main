@@ -1,7 +1,7 @@
 import DailyChart from "../models/DailyChart.js";
 
-// ✅ CREATE
-export const createDailyChart = async (req, res) => {
+// ✅ CREATE (FIX NAME)
+export const addDailyChart = async (req, res) => {
   try {
     const data = await DailyChart.create(req.body);
 
@@ -19,14 +19,13 @@ export const createDailyChart = async (req, res) => {
   }
 };
 
-// ✅ GET ALL
+// ✅ GET
 export const getDailyChart = async (req, res) => {
   try {
     const data = await DailyChart.find().sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
-      count: data.length,
       data,
     });
   } catch (err) {
@@ -44,53 +43,21 @@ export const updateDailyChart = async (req, res) => {
     const updated = await DailyChart.findByIdAndUpdate(
       req.params.id,
       req.body,
-      {
-        returnDocument: "after", // 🔥 warning fix
-      }
+      { new: true }
     );
 
-    if (!updated) {
-      return res.status(404).json({
-        success: false,
-        message: "Record Not Found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Updated Successfully ✅",
-      data: updated,
-    });
+    res.json(updated);
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Update Error",
-      error: err.message,
-    });
+    res.status(500).json({ error: err.message });
   }
 };
 
 // ✅ DELETE
 export const deleteDailyChart = async (req, res) => {
   try {
-    const deleted = await DailyChart.findByIdAndDelete(req.params.id);
-
-    if (!deleted) {
-      return res.status(404).json({
-        success: false,
-        message: "Record Not Found",
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      message: "Deleted Successfully ❌",
-    });
+    await DailyChart.findByIdAndDelete(req.params.id);
+    res.json({ message: "Deleted ✅" });
   } catch (err) {
-    res.status(500).json({
-      success: false,
-      message: "Delete Error",
-      error: err.message,
-    });
+    res.status(500).json({ error: err.message });
   }
 };

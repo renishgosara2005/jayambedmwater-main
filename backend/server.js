@@ -42,7 +42,7 @@ app.use("/api/expense", expenseRoutes);
 app.use("/api/shopping", shoppingRoutes);
 app.use("/api/profit", profitRoutes);
 app.use("/api/employee", employeeRoutes);
-app.use("/api/employee-entry", employeeEntryRoutes);
+app.use("/api/employee", employeeEntryRoutes);
 
 // ROOT
 app.get("/", (req, res) => {
