@@ -38,7 +38,7 @@ const DailyChart = () => {
 
   const [selectedCell, setSelectedCell] = useState(null);
 
-  const employees = ["Manveer kaka", "Vijay", "Bhano"];
+  const employees = ["Manveer kaka", "Vijay", "Bhano", ""];
 
   // ✅ FETCH DATA (FIXED)
   const fetchData = async () => {
