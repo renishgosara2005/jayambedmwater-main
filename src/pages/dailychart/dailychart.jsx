@@ -22,7 +22,8 @@ import BASE_URL from "../../api";
 
 const { Title, Text } = Typography;
 
-const API = `${BASE_URL}/api/customer`;
+// ✅ FIXED API
+const API = `${BASE_URL}/api/daily-chart`;
 
 const DailyChart = () => {
   const [data, setData] = useState([]);
@@ -64,12 +65,12 @@ const DailyChart = () => {
     setFilteredData(data.filter((i) => i.date === dateStr));
   }, [selectedDate, data]);
 
-  // 🔥 ADD CUSTOMER
+  // 🔥 ADD
   const handleAdd = async () => {
     try {
       const values = await form.validateFields();
 
-      await fetch(`${API}/add`, {
+      await fetch(API, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -90,9 +91,11 @@ const DailyChart = () => {
     }
   };
 
-  // 🔥 DELETE
+  // 🔥 DELETE (FIXED)
   const handleDelete = async (id) => {
-    await fetch(`${API}/${id}`, { method: "DELETE" });
+    await fetch(`${API}/${id}`, {
+      method: "DELETE",
+    });
     message.success("Deleted 🗑️");
     fetchData();
   };
@@ -119,7 +122,7 @@ const DailyChart = () => {
 
     updatedItem.total = totalQty * updatedItem.price;
 
-    await fetch(`${API}/update/${updatedItem._id}`, {
+    await fetch(`${API}/${updatedItem._id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedItem),
@@ -147,12 +150,9 @@ const DailyChart = () => {
         onClick={() => handleCellClick(record, `q${num}`)}
         style={{
           cursor: "pointer",
-          padding: 5,
+          padding: 6,
           borderRadius: 6,
-          transition: "0.2s",
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.background = "#f5f5f5")}
-        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
       >
         <b>{record[`q${num}`] || 0} L</b>
         <div style={{ fontSize: 11, color: "#999" }}>
@@ -169,7 +169,6 @@ const DailyChart = () => {
     { title: "Total ₹", dataIndex: "total", align: "center" },
     {
       title: "Action",
-      align: "center",
       render: (_, record) => (
         <Button danger size="small" onClick={() => handleDelete(record._id)}>
           Delete
@@ -180,7 +179,6 @@ const DailyChart = () => {
 
   return (
     <div style={{ padding: 10 }}>
-      {/* 🔥 HEADER */}
       <Row gutter={[10, 10]} style={{ marginBottom: 12 }}>
         <Col xs={24} sm={12} md={6}>
           <DatePicker
@@ -197,12 +195,7 @@ const DailyChart = () => {
         </Col>
       </Row>
 
-      {/* 🔥 TABLE */}
-      <Card
-        title={<Text strong>Daily Supply</Text>}
-        bordered={false}
-        style={{ borderRadius: 12 }}
-      >
+      <Card title={<Text strong>Daily Supply</Text>} bordered={false}>
         <Spin spinning={loading}>
           <Table
             rowKey="_id"
@@ -225,13 +218,8 @@ const DailyChart = () => {
         </Row>
       </Card>
 
-      {/* 🔥 ADD MODAL */}
-      <Modal
-        title="Add Customer"
-        open={open}
-        onOk={handleAdd}
-        onCancel={() => setOpen(false)}
-      >
+      {/* ADD */}
+      <Modal open={open} onOk={handleAdd} onCancel={() => setOpen(false)}>
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="Customer" rules={[{ required: true }]}>
             <Input />
@@ -243,13 +231,8 @@ const DailyChart = () => {
         </Form>
       </Modal>
 
-      {/* 🔥 CELL MODAL */}
-      <Modal
-        title="Update Entry"
-        open={cellModal}
-        onOk={handleCellSave}
-        onCancel={() => setCellModal(false)}
-      >
+      {/* CELL */}
+      <Modal open={cellModal} onOk={handleCellSave} onCancel={() => setCellModal(false)}>
         <Form form={cellForm} layout="vertical">
           <Form.Item name="employee" label="Employee" rules={[{ required: true }]}>
             <Select>
