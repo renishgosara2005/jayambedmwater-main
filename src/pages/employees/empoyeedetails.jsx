@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/exhaustive-deps */
+
 import {
   Card,
   Button,
@@ -9,6 +10,9 @@ import {
   Col,
   Typography,
   Calendar,
+  Space,
+  message,
+  Divider,
 } from "antd";
 import { useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -26,21 +30,31 @@ const EmployeeDetail = () => {
   const [type, setType] = useState("debit");
   const [selectedMonth, setSelectedMonth] = useState(dayjs());
   const [dailyWater, setDailyWater] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   // 🔥 FETCH DATA
   const fetchData = async () => {
-    const res = await fetch(
-      `${BASE_URL}/api/employee/${state._id}`
-    );
-    const data = await res.json();
-    setRecords(data);
+    try {
+      setLoading(true);
+
+      const res = await fetch(
+        `${BASE_URL}/api/employee/${state._id}`
+      );
+      const data = await res.json();
+
+      setRecords(data);
+    } catch {
+      message.error("Failed to load ❌");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  // 🔥 AUTO SALARY (ONLY ONCE PER MONTH)
+  // 🔥 AUTO SALARY
   useEffect(() => {
     const addSalary = async () => {
       const monthKey = selectedMonth.format("MM-YYYY");
@@ -51,7 +65,7 @@ const EmployeeDetail = () => {
 
       if (exists) return;
 
-      await fetch("${BASE_URL}/api/employee", {
+      await fetch(`${BASE_URL}/api/employee`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -69,16 +83,14 @@ const EmployeeDetail = () => {
       fetchData();
     };
 
-    if (records.length > 0) {
-      addSalary();
-    }
+    if (records.length > 0) addSalary();
   }, [selectedMonth, records]);
 
   // 🔥 ADD ENTRY
   const handleAdd = async () => {
-    if (!amount) return;
+    if (!amount) return message.warning("Enter amount");
 
-    await fetch("${BASE_URL}/api/employee", {
+    await fetch(`${BASE_URL}/api/employee`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -93,8 +105,9 @@ const EmployeeDetail = () => {
       }),
     });
 
-    fetchData();
+    message.success("Added ✅");
     setAmount("");
+    fetchData();
   };
 
   // 🔥 DELETE
@@ -103,10 +116,11 @@ const EmployeeDetail = () => {
       method: "DELETE",
     });
 
+    message.success("Deleted 🗑️");
     fetchData();
   };
 
-  // 🔥 MONTH FILTER
+  // 🔥 FILTER
   const monthlyData = records.filter((r) => {
     const d = dayjs(r.date, "DD-MM-YYYY");
     return (
@@ -118,11 +132,11 @@ const EmployeeDetail = () => {
   // 🔥 TOTAL
   const totalCredit = monthlyData
     .filter((r) => r.type === "credit" || r.type === "salary")
-    .reduce((sum, r) => sum + r.amount, 0);
+    .reduce((s, r) => s + r.amount, 0);
 
   const totalDebit = monthlyData
     .filter((r) => r.type === "debit")
-    .reduce((sum, r) => sum + r.amount, 0);
+    .reduce((s, r) => s + r.amount, 0);
 
   const balance = totalCredit - totalDebit;
 
@@ -133,16 +147,15 @@ const EmployeeDetail = () => {
     doc.text("Salary Slip", 20, 20);
     doc.text(`Name: ${state.name}`, 20, 30);
     doc.text(`Month: ${selectedMonth.format("MM-YYYY")}`, 20, 40);
-
     doc.text(`Salary: ₹${state.salary}`, 20, 55);
-    doc.text(`Total Credit: ₹${totalCredit}`, 20, 65);
-    doc.text(`Total Debit: ₹${totalDebit}`, 20, 75);
-    doc.text(`Final Payable: ₹${balance}`, 20, 85);
+    doc.text(`Credit: ₹${totalCredit}`, 20, 65);
+    doc.text(`Debit: ₹${totalDebit}`, 20, 75);
+    doc.text(`Balance: ₹${balance}`, 20, 85);
 
-    doc.save(`${state.name}-salary-slip.pdf`);
+    doc.save(`${state.name}.pdf`);
   };
 
-  // 🔥 WATER API (IMPORTANT)
+  // 🔥 WATER
   const getWaterByDate = async (date) => {
     const res = await fetch(
       `${BASE_URL}/api/employee/water/by-date?date=${date.format(
@@ -151,7 +164,7 @@ const EmployeeDetail = () => {
     );
 
     const data = await res.json();
-    setDailyWater(data.total);
+    setDailyWater(data.total || 0);
   };
 
   const columns = [
@@ -160,24 +173,16 @@ const EmployeeDetail = () => {
       title: "Type",
       dataIndex: "type",
       render: (t) => (
-        <span
-          style={{
-            color:
-              t === "credit" || t === "salary"
-                ? "#52c41a"
-                : "#ff4d4f",
-            fontWeight: "bold",
-          }}
-        >
+        <Text strong style={{ color: t === "debit" ? "red" : "green" }}>
           {t.toUpperCase()}
-        </span>
+        </Text>
       ),
     },
     { title: "Amount ₹", dataIndex: "amount" },
     {
       title: "Action",
-      render: (_, record) => (
-        <Button danger onClick={() => handleDelete(record._id)}>
+      render: (_, r) => (
+        <Button danger size="small" onClick={() => handleDelete(r._id)}>
           Delete
         </Button>
       ),
@@ -185,82 +190,73 @@ const EmployeeDetail = () => {
   ];
 
   return (
-    <div style={{ padding: 20 }}>
-      {/* 🔥 EMPLOYEE INFO */}
-      <Card style={{ marginBottom: 20 }}>
+    <div style={{ padding: 10 }}>
+      {/* HEADER */}
+      <Card style={{ marginBottom: 10 }}>
         <Title level={4}>{state.name}</Title>
-        <Text>📞 {state.phone}</Text> <br />
-        <Text>💼 {state.work}</Text> <br />
-        <Text strong>Salary: ₹{state.salary}</Text>
+        <Text>📞 {state.phone}</Text><br />
+        <Text>💼 {state.work}</Text><br />
+        <Text strong>Salary ₹{state.salary}</Text>
       </Card>
 
-      <Row gutter={20}>
-        <Col span={16}>
-          {/* 🔥 INPUT */}
-          <Card style={{ marginBottom: 20 }}>
-            <Row gutter={10}>
-              <Col>
-                <Input
-                  placeholder="Enter amount"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                />
-              </Col>
+      <Row gutter={[10, 10]}>
+        {/* LEFT */}
+        <Col xs={24} md={16}>
+          {/* INPUT */}
+          <Card style={{ marginBottom: 10 }}>
+            <Space wrap>
+              <Input
+                placeholder="Amount"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
 
-              <Col>
-                <Button onClick={() => setType("credit")}>Credit</Button>
-              </Col>
+              <Button onClick={() => setType("credit")}>Credit</Button>
+              <Button danger onClick={() => setType("debit")}>
+                Debit
+              </Button>
 
-              <Col>
-                <Button danger onClick={() => setType("debit")}>
-                  Debit
-                </Button>
-              </Col>
+              <Button type="primary" onClick={handleAdd}>
+                Add
+              </Button>
 
-              <Col>
-                <Button type="primary" onClick={handleAdd}>
-                  Add Entry
-                </Button>
-              </Col>
-
-              <Col>
-                <Button onClick={generateSlip}>
-                  Salary Slip
-                </Button>
-              </Col>
-            </Row>
+              <Button onClick={generateSlip}>
+                PDF
+              </Button>
+            </Space>
           </Card>
 
-          {/* 🔥 MONTH */}
-          <Card style={{ marginBottom: 20 }}>
+          {/* MONTH */}
+          <Card style={{ marginBottom: 10 }}>
             <DatePicker
               picker="month"
               value={selectedMonth}
-              onChange={(val) => setSelectedMonth(val)}
+              onChange={setSelectedMonth}
             />
           </Card>
 
-          {/* 🔥 TOTAL */}
-          <Row gutter={16}>
-            <Col span={8}><Card>Credit ₹{totalCredit}</Card></Col>
-            <Col span={8}><Card>Debit ₹{totalDebit}</Card></Col>
-            <Col span={8}><Card>Balance ₹{balance}</Card></Col>
+          {/* TOTAL */}
+          <Row gutter={10}>
+            <Col xs={24} sm={8}><Card>Credit ₹{totalCredit}</Card></Col>
+            <Col xs={24} sm={8}><Card>Debit ₹{totalDebit}</Card></Col>
+            <Col xs={24} sm={8}><Card>Balance ₹{balance}</Card></Col>
           </Row>
 
-          {/* 🔥 MONTH DATA */}
-          <Card style={{ marginTop: 20 }}>
-            <Table columns={columns} dataSource={monthlyData} rowKey="_id" />
+          <Divider />
+
+          {/* TABLE */}
+          <Card title="Monthly Data">
+            <Table columns={columns} dataSource={monthlyData} rowKey="_id" loading={loading} />
           </Card>
 
-          {/* 🔥 FULL HISTORY */}
-          <Card title="Full History" style={{ marginTop: 20 }}>
+          <Card title="Full History" style={{ marginTop: 10 }}>
             <Table columns={columns} dataSource={records} rowKey="_id" />
           </Card>
         </Col>
 
-        {/* 🔥 CALENDAR */}
-        <Col span={8}>
-          <Card title="Water Calendar">
+        {/* RIGHT */}
+        <Col xs={24} md={8}>
+          <Card title="Water">
             <Calendar fullscreen={false} onSelect={getWaterByDate} />
             <Title level={4}>💧 {dailyWater} L</Title>
           </Card>
