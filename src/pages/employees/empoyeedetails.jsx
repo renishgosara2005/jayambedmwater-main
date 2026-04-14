@@ -1,5 +1,4 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-
 import {
   Card,
   Button,
@@ -24,7 +23,6 @@ const { Title, Text } = Typography;
 
 const EmployeeDetail = () => {
   const { state } = useLocation();
-
   const [records, setRecords] = useState([]);
   const [amount, setAmount] = useState("");
   const [type, setType] = useState("debit");
@@ -37,9 +35,7 @@ const EmployeeDetail = () => {
     try {
       setLoading(true);
 
-      const res = await fetch(
-        `${BASE_URL}/api/employee/${state._id}`
-      );
+      const res = await fetch(`${BASE_URL}/api/employee/${state._id}`);
       const data = await res.json();
 
       setRecords(data);
@@ -60,7 +56,7 @@ const EmployeeDetail = () => {
       const monthKey = selectedMonth.format("MM-YYYY");
 
       const exists = records.find(
-        (r) => r.type === "salary" && r.month === monthKey
+        (r) => r.type === "salary" && r.month === monthKey,
       );
 
       if (exists) return;
@@ -124,8 +120,7 @@ const EmployeeDetail = () => {
   const monthlyData = records.filter((r) => {
     const d = dayjs(r.date, "DD-MM-YYYY");
     return (
-      d.month() === selectedMonth.month() &&
-      d.year() === selectedMonth.year()
+      d.month() === selectedMonth.month() && d.year() === selectedMonth.year()
     );
   });
 
@@ -159,8 +154,8 @@ const EmployeeDetail = () => {
   const getWaterByDate = async (date) => {
     const res = await fetch(
       `${BASE_URL}/api/employee/water/by-date?date=${date.format(
-        "DD-MM-YYYY"
-      )}&name=${state.name}`
+        "DD-MM-YYYY",
+      )}&name=${state.name}`,
     );
 
     const data = await res.json();
@@ -194,8 +189,10 @@ const EmployeeDetail = () => {
       {/* HEADER */}
       <Card style={{ marginBottom: 10 }}>
         <Title level={4}>{state.name}</Title>
-        <Text>📞 {state.phone}</Text><br />
-        <Text>💼 {state.work}</Text><br />
+        <Text>📞 {state.phone}</Text>
+        <br />
+        <Text>💼 {state.work}</Text>
+        <br />
         <Text strong>Salary ₹{state.salary}</Text>
       </Card>
 
@@ -220,9 +217,7 @@ const EmployeeDetail = () => {
                 Add
               </Button>
 
-              <Button onClick={generateSlip}>
-                PDF
-              </Button>
+              <Button onClick={generateSlip}>PDF</Button>
             </Space>
           </Card>
 
@@ -237,16 +232,27 @@ const EmployeeDetail = () => {
 
           {/* TOTAL */}
           <Row gutter={10}>
-            <Col xs={24} sm={8}><Card>Credit ₹{totalCredit}</Card></Col>
-            <Col xs={24} sm={8}><Card>Debit ₹{totalDebit}</Card></Col>
-            <Col xs={24} sm={8}><Card>Balance ₹{balance}</Card></Col>
+            <Col xs={24} sm={8}>
+              <Card>Credit ₹{totalCredit}</Card>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Card>Debit ₹{totalDebit}</Card>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Card>Balance ₹{balance}</Card>
+            </Col>
           </Row>
 
           <Divider />
 
           {/* TABLE */}
           <Card title="Monthly Data">
-            <Table columns={columns} dataSource={monthlyData} rowKey="_id" loading={loading} />
+            <Table
+              columns={columns}
+              dataSource={monthlyData}
+              rowKey="_id"
+              loading={loading}
+            />
           </Card>
 
           <Card title="Full History" style={{ marginTop: 10 }}>
