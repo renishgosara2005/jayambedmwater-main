@@ -20,6 +20,7 @@ import dayjs from "dayjs";
 import BASE_URL from "../../api";
 
 const { Title, Text } = Typography;
+
 const API = `${BASE_URL}/api/daily-chart`;
 
 const DailyChart = () => {
@@ -36,9 +37,9 @@ const DailyChart = () => {
 
   const [selectedCell, setSelectedCell] = useState(null);
 
-  const employees = ["Manveer kaka", "Vijay", "Bhano", "--"];
+  const employees = ["Manveer kaka", "Vijay", "Bhano"];
 
-  // ✅ FETCH
+  // ✅ FETCH DATA
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -62,9 +63,22 @@ const DailyChart = () => {
     setFilteredData(data.filter((i) => i.date === dateStr));
   }, [selectedDate, data]);
 
-  // ✅ ADD
+  // ✅ ADD (🔥 DUPLICATE STOP)
   const handleAdd = async () => {
     const values = await form.validateFields();
+    const dateStr = selectedDate.format("DD-MM-YYYY");
+
+    // 🔥 DUPLICATE CHECK
+    const exists = data.some(
+      (i) =>
+        i.name.toLowerCase() === values.name.toLowerCase() &&
+        i.date === dateStr
+    );
+
+    if (exists) {
+      message.error("⚠️ Customer already exists for this date!");
+      return;
+    }
 
     await fetch(API, {
       method: "POST",
@@ -72,7 +86,7 @@ const DailyChart = () => {
       body: JSON.stringify({
         name: values.name,
         price: Number(values.price),
-        date: selectedDate.format("DD-MM-YYYY"),
+        date: dateStr,
         q1: 0,
         q2: 0,
         q3: 0,
@@ -83,7 +97,7 @@ const DailyChart = () => {
       }),
     });
 
-    message.success("Added ✅");
+    message.success("Customer Added ✅");
     setOpen(false);
     form.resetFields();
     fetchData();
@@ -92,10 +106,17 @@ const DailyChart = () => {
   // ✅ DELETE
   const handleDelete = async (id) => {
     await fetch(`${API}/${id}`, { method: "DELETE" });
+    message.success("Deleted 🗑️");
     fetchData();
   };
 
-  // ✅ CELL SAVE
+  // ✅ CELL CLICK
+  const handleCellClick = (record, field) => {
+    setSelectedCell({ record, field });
+    setCellModal(true);
+  };
+
+  // ✅ CELL SAVE (🔥 TOTAL FIX)
   const handleCellSave = async () => {
     const values = await cellForm.validateFields();
 
@@ -105,6 +126,18 @@ const DailyChart = () => {
       [`${selectedCell.field}_emp`]: values.employee,
     };
 
+    // 🔥 TOTAL CALCULATION
+    const qty =
+      (updated.q1 || 0) +
+      (updated.q2 || 0) +
+      (updated.q3 || 0) +
+      (updated.q4 || 0) +
+      (updated.q5 || 0) +
+      (updated.q6 || 0) +
+      (updated.q7 || 0);
+
+    updated.total = qty * (updated.price || 0);
+
     await fetch(`${API}/${updated._id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -113,26 +146,11 @@ const DailyChart = () => {
 
     message.success("Updated ✅");
     setCellModal(false);
+    cellForm.resetFields();
     fetchData();
   };
 
-  const getColumn = (num) => ({
-    title: num,
-    align: "center",
-    render: (_, r) => (
-      <div
-        onClick={() => {
-          setSelectedCell({ record: r, field: `q${num}` });
-          setCellModal(true);
-        }}
-      >
-        <b>{r[`q${num}`] || 0} L</b>
-        <div style={{ fontSize: 11 }}>{r[`q${num}_emp`] || "-"}</div>
-      </div>
-    ),
-  });
-
-  // ✅ TOTAL
+  // ✅ TOTAL SUMMARY
   const totalLiters = filteredData.reduce(
     (s, i) =>
       s +
@@ -143,7 +161,7 @@ const DailyChart = () => {
       (i.q5 || 0) +
       (i.q6 || 0) +
       (i.q7 || 0),
-    0,
+    0
   );
 
   const grandTotal = filteredData.reduce((s, i) => {
@@ -155,8 +173,26 @@ const DailyChart = () => {
       (i.q5 || 0) +
       (i.q6 || 0) +
       (i.q7 || 0);
+
     return s + qty * (i.price || 0);
   }, 0);
+
+  // ✅ COLUMN
+  const getColumn = (num) => ({
+    title: num,
+    align: "center",
+    render: (_, r) => (
+      <div
+        onClick={() => handleCellClick(r, `q${num}`)}
+        style={{ cursor: "pointer" }}
+      >
+        <b>{r[`q${num}`] || 0} L</b>
+        <div style={{ fontSize: 11, color: "#999" }}>
+          {r[`q${num}_emp`] || "-"}
+        </div>
+      </div>
+    ),
+  });
 
   const columns = [
     { title: "Name", dataIndex: "name" },
@@ -168,7 +204,7 @@ const DailyChart = () => {
     getColumn(6),
     getColumn(7),
 
-    // 🔥 TOTAL COLUMN FIX
+    // 🔥 TOTAL COLUMN
     {
       title: "Total ₹",
       render: (_, r) => {
@@ -180,6 +216,7 @@ const DailyChart = () => {
           (r.q5 || 0) +
           (r.q6 || 0) +
           (r.q7 || 0);
+
         return <b>₹ {qty * (r.price || 0)}</b>;
       },
     },
@@ -196,6 +233,7 @@ const DailyChart = () => {
 
   return (
     <div style={{ padding: 10 }}>
+      {/* HEADER */}
       <Row gutter={[10, 10]}>
         <Col xs={24} md={6}>
           <DatePicker
@@ -212,7 +250,8 @@ const DailyChart = () => {
         </Col>
       </Row>
 
-      <Card title="Daily Supply" style={{ marginTop: 10 }}>
+      {/* TABLE */}
+      <Card title={<Text strong>Daily Supply</Text>} style={{ marginTop: 10 }}>
         <Spin spinning={loading}>
           <Table
             columns={columns}
@@ -225,18 +264,25 @@ const DailyChart = () => {
 
         <Divider />
 
+        {/* SUMMARY */}
         <Row gutter={10}>
           <Col xs={24} md={12}>
-            <Card>💧 {totalLiters} L</Card>
+            <Card>💧 Total Water: {totalLiters} L</Card>
           </Col>
 
           <Col xs={24} md={12}>
-            <Card>₹ {grandTotal}</Card>
+            <Card>💰 Total Amount: ₹ {grandTotal}</Card>
           </Col>
         </Row>
       </Card>
 
-      <Modal open={open} onOk={handleAdd} onCancel={() => setOpen(false)}>
+      {/* ADD MODAL */}
+      <Modal
+        title="Add Customer"
+        open={open}
+        onOk={handleAdd}
+        onCancel={() => setOpen(false)}
+      >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="Customer" rules={[{ required: true }]}>
             <Input />
@@ -248,7 +294,9 @@ const DailyChart = () => {
         </Form>
       </Modal>
 
+      {/* CELL MODAL */}
       <Modal
+        title="Update Entry"
         open={cellModal}
         onOk={handleCellSave}
         onCancel={() => setCellModal(false)}
