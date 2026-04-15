@@ -1,43 +1,41 @@
+import DailyChart from "../models/DailyChart.js";
 import Expense from "../models/Expense.js";
 import Shopping from "../models/Shopping.js";
-import Chemical from "../models/Chemical.js";
-import DailyChart from "../models/DailyChart.js";
 
 export const getProfit = async (req, res) => {
   try {
-    let income = 0,
-      expense = 0,
-      shopping = 0,
-      costic = 0,
-      acid = 0;
-
+    // ✅ WATER INCOME
     const daily = await DailyChart.find();
-    const exp = await Expense.find();
-    const shop = await Shopping.find();
-    const chem = await Chemical.find();
 
-    // INCOME
+    let income = 0;
+
     daily.forEach((d) => {
-      income += Number(d.total || 0);
+      const qty =
+        (d.q1 || 0) +
+        (d.q2 || 0) +
+        (d.q3 || 0) +
+        (d.q4 || 0) +
+        (d.q5 || 0) +
+        (d.q6 || 0) +
+        (d.q7 || 0);
+
+      income += qty * (d.price || 0);
     });
 
-    // EXPENSE
-    exp.forEach((e) => {
-      expense += Number(e.expense || 0);
-    });
+    // ✅ EXPENSE
+    const expenses = await Expense.find();
+    const expense = expenses.reduce((s, i) => s + i.expense, 0);
 
-    // SHOPPING
-    shop.forEach((s) => {
-      shopping += Number(s.price || 0);
-    });
+    // ✅ SHOPPING
+    const shoppingData = await Shopping.find();
+    const shopping = shoppingData.reduce((s, i) => s + i.price, 0);
 
-    // CHEMICAL
-    chem.forEach((c) => {
-      if (c.type === "costic") costic += Number(c.price || 0);
-      if (c.type === "acid") acid += Number(c.price || 0);
-    });
+    // (optional future)
+    const costic = 0;
+    const acid = 0;
 
     const totalExpense = expense + shopping + costic + acid;
+
     const profit = income - totalExpense;
 
     res.json({

@@ -38,7 +38,7 @@ function App() {
           {/* ✅ FIXED */}
           <Route path="costic-asid" element={<CosticAcid />} />
 
-          <Route path="/Profit-Loss" element={<AppLayout />}>
+          <Route path="/Profit-Loss" element={<ProfitLoss />}>
             <Route index element={<ProfitLoss />} />
           </Route>
         </Route>

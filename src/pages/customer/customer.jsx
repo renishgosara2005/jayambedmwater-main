@@ -11,6 +11,9 @@ import {
   Form,
   Row,
   Col,
+  Typography,
+  Space,
+  message,
 } from "antd";
 import { useState, useEffect } from "react";
 import { jsPDF } from "jspdf";
@@ -18,6 +21,9 @@ import BASE_URL from "../../api";
 import dayjs from "dayjs";
 
 const { RangePicker } = DatePicker;
+const { Title } = Typography;
+
+const API = `${BASE_URL}/api/daily-chart`;
 
 const Customers = () => {
   const [data, setData] = useState([]);
@@ -33,26 +39,29 @@ const Customers = () => {
     try {
       setLoading(true);
 
-      const res = await fetch(`${BASE_URL}/api/daily-chart`);
+      const res = await fetch(API);
       const parsed = await res.json();
+
+      const rawData = parsed.data || [];
 
       let finalData = [];
 
-      parsed.forEach((item) => {
+      rawData.forEach((item) => {
         for (let i = 1; i <= 7; i++) {
           const liter = item[`q${i}`];
           const emp = item[`q${i}_emp`];
 
-          if (liter > 0) {
+          if (liter && liter > 0) {
             finalData.push({
               key: `${item._id}-${i}`,
               parentId: item._id,
               field: `q${i}`,
               name: item.name,
-              employee: emp,
-              liter: liter,
-              amount: liter * item.price,
+              employee: emp || "-",
+              liter,
+              amount: liter * (item.price || 0),
               date: item.date,
+              price: item.price,
             });
           }
         }
@@ -61,6 +70,7 @@ const Customers = () => {
       setData(finalData);
     } catch (err) {
       console.log("Fetch Error ❌", err);
+      message.error("Failed to load data");
     } finally {
       setLoading(false);
     }
@@ -84,8 +94,7 @@ const Customers = () => {
       matchDate =
         itemDate.isSame(dateRange[0], "day") ||
         itemDate.isSame(dateRange[1], "day") ||
-        (itemDate.isAfter(dateRange[0]) &&
-          itemDate.isBefore(dateRange[1]));
+        (itemDate.isAfter(dateRange[0]) && itemDate.isBefore(dateRange[1]));
     }
 
     return matchName && matchDate;
@@ -93,16 +102,18 @@ const Customers = () => {
 
   // ✅ DELETE
   const handleDelete = async (record) => {
-    await fetch(`${BASE_URL}/api/daily-chart/${record.parentId}`, {
+    await fetch(`${API}/${record.parentId}`, {
       method: "DELETE",
     });
 
+    message.success("Deleted 🗑️");
     fetchData();
   };
 
   // ✅ EDIT
   const handleEdit = (record) => {
     setEditing(record);
+
     form.setFieldsValue({
       name: record.name,
       employee: record.employee,
@@ -110,19 +121,24 @@ const Customers = () => {
     });
   };
 
+  // ✅ SAVE UPDATE
   const handleSave = async () => {
     const values = await form.validateFields();
 
-    await fetch(`${BASE_URL}/api/daily-chart/${editing.parentId}`, {
+    const updated = {
+      name: values.name,
+      [editing.field]: Number(values.liter),
+      [`${editing.field}_emp`]: values.employee,
+      price: editing.price, // important
+    };
+
+    await fetch(`${API}/${editing.parentId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: values.name,
-        [editing.field]: Number(values.liter),
-        [`${editing.field}_emp`]: values.employee,
-      }),
+      body: JSON.stringify(updated),
     });
 
+    message.success("Updated ✅");
     setEditing(null);
     fetchData();
   };
@@ -130,47 +146,61 @@ const Customers = () => {
   // ✅ PDF
   const generatePDF = () => {
     const doc = new jsPDF();
+
     doc.text("Customer Report", 20, 20);
 
     let y = 30;
 
     filteredData.forEach((item, i) => {
       doc.text(
-        `${i + 1}. ${item.name} - ${item.employee} - ${item.liter}L`,
+        `${i + 1}. ${item.name} - ${item.employee} - ${item.liter}L - ₹${item.amount}`,
         20,
-        y
+        y,
       );
       y += 10;
     });
 
+    doc.text(`Total Entries: ${filteredData.length}`, 20, y + 10);
+
     doc.save("customer-report.pdf");
   };
+
+  // ✅ TOTAL
+  const totalLiter = filteredData.reduce((s, i) => s + i.liter, 0);
+  const totalAmount = filteredData.reduce((s, i) => s + i.amount, 0);
 
   // ✅ TABLE
   const columns = [
     { title: "Customer", dataIndex: "name" },
     { title: "Employee", dataIndex: "employee" },
-    { title: "Liter", dataIndex: "liter" },
+    {
+      title: "Liter",
+      render: (_, r) => <b>{r.liter} L</b>,
+    },
+    {
+      title: "Amount",
+      render: (_, r) => <b>₹ {r.amount}</b>,
+    },
     { title: "Date", dataIndex: "date" },
     {
       title: "Action",
       render: (_, record) => (
-        <>
+        <Space>
           <Button type="link" onClick={() => handleEdit(record)}>
             Edit
           </Button>
           <Button danger type="link" onClick={() => handleDelete(record)}>
             Delete
           </Button>
-        </>
+        </Space>
       ),
     },
   ];
 
   return (
     <div style={{ padding: 10 }}>
-      <Card title="Customer Report" bordered={false}>
-        {/* 🔥 RESPONSIVE FILTER */}
+      <Card title={<Title level={4}>Customer Report</Title>} bordered={false}>
+        {/* 🔥 FILTER */}
         <Row gutter={[10, 10]} style={{ marginBottom: 15 }}>
           <Col xs={24} sm={12} md={8}>
             <Input
@@ -188,13 +218,20 @@ const Customers = () => {
           </Col>
 
           <Col xs={24} sm={24} md={4}>
-            <Button
-              type="primary"
-              block
-              onClick={generatePDF}
-            >
-              Download PDF
+            <Button type="primary" block onClick={generatePDF}>
+              PDF
             </Button>
+          </Col>
+        </Row>
+
+        {/* 🔥 TOTAL */}
+        <Row gutter={10} style={{ marginBottom: 10 }}>
+          <Col xs={24} md={12}>
+            <Card>💧 Total Liter: {totalLiter} L</Card>
+          </Col>
+
+          <Col xs={24} md={12}>
+            <Card>₹ Total Amount: {totalAmount}</Card>
           </Col>
         </Row>
 
@@ -203,7 +240,7 @@ const Customers = () => {
           columns={columns}
           dataSource={filteredData}
           loading={loading}
-          scroll={{ x: 600 }} // mobile fix
+          scroll={{ x: 700 }}
         />
       </Card>
 
@@ -237,3 +274,4 @@ const Customers = () => {
 };
 
 export default Customers;
+  
